@@ -50,14 +50,14 @@ public sealed class TPoseNormalizer
             if (_skel.Humanoid.TryGetValue(a, out var ai) && _skel.Humanoid.TryGetValue(b, out var bi))
                 straighten[ai] = (bi, target);
         }
-        // Arms straight out along ±X, in glTF space (Z-reflected from MMD). MMD's
-        // 左 (left) bones keep their +X side after Z-reflection, so the left arm
-        // extends to +X here; UniVRM's import flips X, landing it on the model's
-        // left (-X) in Unity — matching the reference.
-        Pair(VrmHumanBone.LeftUpperArm, VrmHumanBone.LeftLowerArm, new Vector3(1, 0, 0));
-        Pair(VrmHumanBone.LeftLowerArm, VrmHumanBone.LeftHand, new Vector3(1, 0, 0));
-        Pair(VrmHumanBone.RightUpperArm, VrmHumanBone.RightLowerArm, new Vector3(-1, 0, 0));
-        Pair(VrmHumanBone.RightLowerArm, VrmHumanBone.RightHand, new Vector3(-1, 0, 0));
+        // Arms straight out along ±X, in glTF space. The left side sits on +X
+        // after Z-reflection (VRM 1.0) or on -X after X-reflection (VRM 0.x);
+        // either way UniVRM's import lands the left arm on -X in Unity.
+        float armX = _version == VrmVersion.Vrm1 ? 1f : -1f;
+        Pair(VrmHumanBone.LeftUpperArm, VrmHumanBone.LeftLowerArm, new Vector3(armX, 0, 0));
+        Pair(VrmHumanBone.LeftLowerArm, VrmHumanBone.LeftHand, new Vector3(armX, 0, 0));
+        Pair(VrmHumanBone.RightUpperArm, VrmHumanBone.RightLowerArm, new Vector3(-armX, 0, 0));
+        Pair(VrmHumanBone.RightLowerArm, VrmHumanBone.RightHand, new Vector3(-armX, 0, 0));
         // Legs are kept nearly vertical (-Y) with only a SLIGHT forward knee
         // bend. Unity's foot-IK solver needs the knee clearly forward to know
         // which way to flex, but a large bend (was 0.5 ≈ 27°) looks like a squat

@@ -15,7 +15,7 @@ public sealed class VrmConverter
 {
     public byte[] Convert(PmxModel model, ConversionOptions options)
     {
-        var coords = new CoordinateConverter(options.Scale);
+        var coords = new CoordinateConverter(options.Scale, options.Version);
         var root = new GltfRoot { Asset = { Generator = "Pmx2Vrm" } };
         var buffer = new BufferBuilder(root);
 

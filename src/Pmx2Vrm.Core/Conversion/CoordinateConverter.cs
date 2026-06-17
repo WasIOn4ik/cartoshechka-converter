@@ -25,17 +25,31 @@ public sealed class CoordinateConverter
 
     public float Scale { get; }
 
-    public CoordinateConverter(float scale = DefaultScale)
+    /// <summary>Axis negated to convert handedness: true = Z (VRM 1.0), false = X (VRM 0.x).</summary>
+    private readonly bool _reflectZ;
+
+    public CoordinateConverter(float scale = DefaultScale, Vrm.VrmVersion version = Vrm.VrmVersion.Vrm1)
     {
         if (scale <= 0f) throw new ArgumentOutOfRangeException(nameof(scale));
         Scale = scale;
+        // The reflection axis must match UniVRM's import flip so the avatar ends
+        // up facing +Z with its left on -X: VRM 1.0 imports with ReverseX, so the
+        // glTF must be Z-reflected; VRM 0.x imports with ReverseZ, so it must be
+        // X-reflected. Using the wrong axis turns the model 180° at import.
+        _reflectZ = version == Vrm.VrmVersion.Vrm1;
     }
 
-    public Vector3 Position(Vector3 p) => new(p.X * Scale, p.Y * Scale, -p.Z * Scale);
+    public Vector3 Position(Vector3 p) => _reflectZ
+        ? new(p.X * Scale, p.Y * Scale, -p.Z * Scale)
+        : new(-p.X * Scale, p.Y * Scale, p.Z * Scale);
 
-    public Vector3 Direction(Vector3 d) => new(d.X, d.Y, -d.Z);
+    public Vector3 Direction(Vector3 d) => _reflectZ
+        ? new(d.X, d.Y, -d.Z)
+        : new(-d.X, d.Y, d.Z);
 
-    public Quaternion Rotation(Quaternion q) => new(-q.X, -q.Y, q.Z, q.W);
+    public Quaternion Rotation(Quaternion q) => _reflectZ
+        ? new(-q.X, -q.Y, q.Z, q.W)
+        : new(q.X, -q.Y, -q.Z, q.W);
 
     public Quaternion EulerToQuaternion(Vector3 radians)
     {

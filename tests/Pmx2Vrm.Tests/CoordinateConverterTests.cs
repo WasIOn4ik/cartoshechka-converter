@@ -15,6 +15,16 @@ public class CoordinateConverterTests
     }
 
     [Fact]
+    public void Vrm0_negates_x_instead_of_z()
+    {
+        // VRM 0.x imports with ReverseZ, so the glTF must be X-reflected.
+        var c = new CoordinateConverter(scale: 0.1f, version: Pmx2Vrm.Core.Vrm.VrmVersion.Vrm0);
+        Assert.Equal(new Vector3(-0.2f, 0.4f, 0.6f), c.Position(new Vector3(2, 4, 6)));
+        Assert.Equal(new Vector3(-1, 0, 0), c.Direction(new Vector3(1, 0, 0)));
+        Assert.Equal(new Quaternion(0.1f, -0.2f, -0.3f, 0.9f), c.Rotation(new Quaternion(0.1f, 0.2f, 0.3f, 0.9f)));
+    }
+
+    [Fact]
     public void Direction_negates_z_without_scaling()
     {
         var c = new CoordinateConverter(scale: 0.1f);

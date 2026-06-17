@@ -31,7 +31,7 @@ public class TPoseNormalizerTests
     [Fact]
     public void Straightens_left_arm_horizontal_along_plus_x()
     {
-        var t = new TPoseNormalizer(ArmSkeleton(), enabled: true);
+        var t = new TPoseNormalizer(ArmSkeleton(), enabled: true, VrmVersion.Vrm1);
 
         // After T-pose, upper->lower->hand all sit at the upper arm's height.
         float armY = t.NewWorldPos[1].Y;
