@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pmx2Vrm.Cli/Pmx2Vrm.Cli.csproj" />
+    <Project Path="src/Pmx2Vrm.Core/Pmx2Vrm.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Pmx2Vrm.Tests/Pmx2Vrm.Tests.csproj" />
+  </Folder>
+</Solution>

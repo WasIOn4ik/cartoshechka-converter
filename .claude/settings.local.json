@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Force F:\\\\FBX_TO_VRM | Select-Object Name, Length; Write-Output \"---DOTNET---\"; \\(Get-Command dotnet -ErrorAction SilentlyContinue\\).Source; dotnet --version; Write-Output \"---GIT---\"; \\(Get-Command git -ErrorAction SilentlyContinue\\).Source; git --version)"
+    ]
+  }
+}

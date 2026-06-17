@@ -1,0 +1,39 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+artifacts/
+TestResults/
+publish/
+dist/
+
+# Unity (optional Pmx2Vrm.Unity project)
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+*.csproj.meta
+
+# Rider / VS
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Cloned third-party repo for debugging (has its own git history, ~2GB)
+Mate-Engine/
+
+# Local debug artifacts
+frames/
+mate_validate.log
+
+# Local sample models (licensed assets — do not commit)
+samples/*.pmx
+samples/*.vrm
+*.local.pmx
