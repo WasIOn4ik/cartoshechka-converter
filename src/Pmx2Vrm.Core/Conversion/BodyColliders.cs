@@ -69,30 +69,32 @@ public static class BodyColliders
         }
 
         // Torso: hips → spine → (upper torso) and, when a distinct chest exists,
-        // chest → neck, so the trunk is covered top to bottom.
-        Capsule(VrmHumanBone.Hips, VrmHumanBone.Spine, 0.10f);
+        // chest → neck, so the trunk is covered top to bottom. Radii are kept
+        // snug to the body — a fat hip/torso capsule shoves the skirt outward and
+        // rides it up, so the trunk colliders sit just inside the silhouette.
+        Capsule(VrmHumanBone.Hips, VrmHumanBone.Spine, 0.065f);
         VrmHumanBone upper =
             Has(VrmHumanBone.Chest) ? VrmHumanBone.Chest :
             Has(VrmHumanBone.UpperChest) ? VrmHumanBone.UpperChest :
             Has(VrmHumanBone.Neck) ? VrmHumanBone.Neck : VrmHumanBone.Head;
-        Capsule(VrmHumanBone.Spine, upper, 0.09f);
+        Capsule(VrmHumanBone.Spine, upper, 0.06f);
         if (Has(VrmHumanBone.Chest) && Has(VrmHumanBone.Neck))
-            Capsule(VrmHumanBone.Chest, VrmHumanBone.Neck, 0.08f);
+            Capsule(VrmHumanBone.Chest, VrmHumanBone.Neck, 0.05f);
 
         // Head: a sphere nudged up from the head bone.
-        Sphere(VrmHumanBone.Head, new Vector3(0, 0.08f, 0), 0.10f);
+        Sphere(VrmHumanBone.Head, new Vector3(0, 0.07f, 0), 0.08f);
 
-        // Arms.
-        Capsule(VrmHumanBone.LeftUpperArm, VrmHumanBone.LeftLowerArm, 0.045f);
-        Capsule(VrmHumanBone.LeftLowerArm, VrmHumanBone.LeftHand, 0.04f);
-        Capsule(VrmHumanBone.RightUpperArm, VrmHumanBone.RightLowerArm, 0.045f);
-        Capsule(VrmHumanBone.RightLowerArm, VrmHumanBone.RightHand, 0.04f);
+        // Arms (thin — sleeves cling close).
+        Capsule(VrmHumanBone.LeftUpperArm, VrmHumanBone.LeftLowerArm, 0.035f);
+        Capsule(VrmHumanBone.LeftLowerArm, VrmHumanBone.LeftHand, 0.03f);
+        Capsule(VrmHumanBone.RightUpperArm, VrmHumanBone.RightLowerArm, 0.035f);
+        Capsule(VrmHumanBone.RightLowerArm, VrmHumanBone.RightHand, 0.03f);
 
-        // Legs.
-        Capsule(VrmHumanBone.LeftUpperLeg, VrmHumanBone.LeftLowerLeg, 0.07f);
-        Capsule(VrmHumanBone.LeftLowerLeg, VrmHumanBone.LeftFoot, 0.055f);
-        Capsule(VrmHumanBone.RightUpperLeg, VrmHumanBone.RightLowerLeg, 0.07f);
-        Capsule(VrmHumanBone.RightLowerLeg, VrmHumanBone.RightFoot, 0.055f);
+        // Legs (kept thin so a skirt drapes past them instead of being pushed up).
+        Capsule(VrmHumanBone.LeftUpperLeg, VrmHumanBone.LeftLowerLeg, 0.05f);
+        Capsule(VrmHumanBone.LeftLowerLeg, VrmHumanBone.LeftFoot, 0.04f);
+        Capsule(VrmHumanBone.RightUpperLeg, VrmHumanBone.RightLowerLeg, 0.05f);
+        Capsule(VrmHumanBone.RightLowerLeg, VrmHumanBone.RightFoot, 0.04f);
 
         return list;
     }
