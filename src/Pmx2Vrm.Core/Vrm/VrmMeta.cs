@@ -35,11 +35,13 @@ public sealed class ConversionOptions
     /// <summary>Directory used to resolve and embed external texture files.</summary>
     public string? TextureBaseDir { get; set; }
     /// <summary>
-    /// Emit spring-bone colliders. Off by default: the MMD→VRM collider
-    /// approximation tends to make cloth jitter, and stable known-good VRMs
-    /// ship without them. Enable for hair/skirt that must not clip the body.
+    /// Emit a curated set of body-sized spring-bone colliders (torso/limb
+    /// capsules + head sphere) so hair and skirt drape over the body instead of
+    /// clipping through it. On by default: unlike the old "every MMD rigid body
+    /// becomes a collider" approach (which made cloth jitter), the curated body
+    /// capsules mirror what stable VRoid exports ship. Disable with --no-colliders.
     /// </summary>
-    public bool SpringColliders { get; set; }
+    public bool SpringColliders { get; set; } = true;
     /// <summary>Re-pose the A-pose MMD skeleton into the VRM 1.0 T-pose. Default on.</summary>
     public bool TPose { get; set; } = true;
     public Action<string>? Warn { get; set; }

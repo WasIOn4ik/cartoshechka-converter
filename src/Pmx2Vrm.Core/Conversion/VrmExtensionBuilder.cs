@@ -266,16 +266,14 @@ public sealed class VrmExtensionBuilder
 
     private static Dictionary<string, object> Vrm0Secondary(ConvertedPhysics physics)
     {
+        // VRM 0.x secondaryAnimation colliders are spheres only, so a capsule is
+        // approximated by a short string of spheres laid along its axis.
         var colliderGroups = physics.Colliders
             .GroupBy(c => c.NodeIndex)
             .Select(g => (object)new Dictionary<string, object>
             {
                 ["node"] = g.Key,
-                ["colliders"] = g.Select(c => (object)new Dictionary<string, object>
-                {
-                    ["offset"] = XyzObj(c.Offset),
-                    ["radius"] = c.Radius,
-                }).ToArray(),
+                ["colliders"] = g.SelectMany(Vrm0Spheres).ToArray(),
             }).ToArray();
 
         // VRM 0.x grows a verlet chain from each root in `bones`, following bone
@@ -301,6 +299,27 @@ public sealed class VrmExtensionBuilder
             ["boneGroups"] = boneGroups,
             ["colliderGroups"] = colliderGroups,
         };
+    }
+
+    /// <summary>One sphere for a sphere collider; several along the axis for a capsule.</summary>
+    private static IEnumerable<object> Vrm0Spheres(SpringColliderDef c)
+    {
+        if (c.Shape != SpringColliderShape.Capsule)
+        {
+            yield return new Dictionary<string, object> { ["offset"] = XyzObj(c.Offset), ["radius"] = c.Radius };
+            yield break;
+        }
+
+        // Walk from Offset to TailOffset, spacing spheres about one radius apart
+        // so they overlap into a continuous capsule (capped at a small count).
+        var axis = c.TailOffset - c.Offset;
+        float len = axis.Length();
+        int steps = Math.Clamp((int)MathF.Ceiling(len / MathF.Max(c.Radius, 1e-3f)), 1, 6);
+        for (int k = 0; k <= steps; k++)
+        {
+            var p = c.Offset + axis * (k / (float)steps);
+            yield return new Dictionary<string, object> { ["offset"] = XyzObj(p), ["radius"] = c.Radius };
+        }
     }
 
     private static object[] Vrm0Materials(IReadOnlyList<MToonMaterialDef> mats) =>

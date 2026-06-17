@@ -13,8 +13,8 @@ var versionOpt = new Option<string>("--vrm-version") { Description = "Target VRM
 var scaleOpt = new Option<float>("--scale") { Description = "Metres per MMD unit.", DefaultValueFactory = _ => CoordinateConverter.DefaultScale };
 var titleOpt = new Option<string?>("--title") { Description = "Model title for VRM meta." };
 var authorOpt = new Option<string?>("--author") { Description = "Author for VRM meta." };
-var collidersOpt = new Option<bool>("--spring-colliders") { Description = "Emit spring-bone colliders (off by default; can cause cloth jitter)." };
-var noCollidersOpt = new Option<bool>("--no-colliders") { Description = "Force-disable all spring-bone colliders (overrides --spring-colliders)." };
+var collidersOpt = new Option<bool>("--spring-colliders") { Description = "Emit curated body spring-bone colliders (on by default; no-op, kept for compatibility)." };
+var noCollidersOpt = new Option<bool>("--no-colliders") { Description = "Disable the curated body spring-bone colliders." };
 var noTposeOpt = new Option<bool>("--no-tpose") { Description = "Skip A-pose to T-pose normalization (debug)." };
 
 var root = new RootCommand("Pmx2Vrm — convert MMD PMX models to VRM (0.x / 1.0).")
@@ -41,7 +41,7 @@ root.SetAction(parse =>
     {
         Version = version,
         Scale = parse.GetValue(scaleOpt),
-        SpringColliders = parse.GetValue(collidersOpt) && !parse.GetValue(noCollidersOpt),
+        SpringColliders = !parse.GetValue(noCollidersOpt),
         TPose = !parse.GetValue(noTposeOpt),
         Warn = msg => Console.Error.WriteLine($"warning: {msg}"),
         Meta = new VrmMeta

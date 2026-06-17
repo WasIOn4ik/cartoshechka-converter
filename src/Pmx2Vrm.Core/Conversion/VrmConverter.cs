@@ -59,8 +59,23 @@ public sealed class VrmConverter
         // an animated bone (hips) drives the springs with every idle sway and
         // makes hair/cloth jitter; known-good VRMs (VRoid/Blender exports) use
         // world-space inertia.
-        var physics = new PhysicsConverter(coords, b => b)
-            .Convert(model, skeleton.Humanoid.Values, centerNode: -1, options.SpringColliders);
+        //
+        // Colliders are a curated set of body-sized capsules built from the final
+        // humanoid skeleton (see BodyColliders), NOT the raw MMD rigid bodies:
+        // dumping every MMD body made cloth jitter, while a handful of body
+        // capsules let hair/skirt drape cleanly. Spring chains are still built
+        // from the MMD dynamic bodies; we just swap in the curated colliders.
+        var springs = new PhysicsConverter(coords, b => b)
+            .Convert(model, skeleton.Humanoid.Values, centerNode: -1, includeColliders: false);
+        var colliders = options.SpringColliders
+            ? BodyColliders.Build(skeleton.Humanoid, tpose.NewWorldPos)
+            : new List<SpringColliderDef>();
+        var physics = new ConvertedPhysics
+        {
+            Colliders = colliders,
+            Chains = springs.Chains,
+            Roots = springs.Roots,
+        };
 
         new VrmExtensionBuilder().Apply(root, options.Version, new VrmExtensionBuilder.Inputs
         {
