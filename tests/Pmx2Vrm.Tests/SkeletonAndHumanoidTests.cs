@@ -102,6 +102,37 @@ public class SkeletonConverterTests
     }
 
     [Fact]
+    public void Leg_humanoid_bones_retarget_to_mesh_bearing_deform_bones()
+    {
+        // FK leg chain (left) with NO mesh; parallel "D" deform bones that append
+        // the FK bones at weight 1 and carry the mesh; plus a toe deform bone.
+        var model = new PmxModel();
+        void Bone(string name, int parent, PmxBoneFlags flags = 0, int inheritParent = -1, float inheritW = 0)
+            => model.Bones.Add(new PmxBone { NameLocal = name, ParentIndex = parent, Flags = flags, InheritParentIndex = inheritParent, InheritWeight = inheritW });
+
+        Bone("下半身", -1);                                                   // 0 hips (by name)
+        Bone("腰キャンセル左", 0);                                             // 1
+        Bone("左足", 1);                                                       // 2 FK upper leg
+        Bone("左ひざ", 2);                                                     // 3 FK lower leg
+        Bone("左足首", 3);                                                     // 4 FK foot
+        Bone("左つま先", 4);                                                   // 5 FK toe
+        Bone("足D", 1, PmxBoneFlags.InheritRotation, 2, 1f);                  // 6 upperLeg-D
+        Bone("ひざD", 6, PmxBoneFlags.InheritRotation, 3, 1f);                // 7 lowerLeg-D
+        Bone("足首D", 7, PmxBoneFlags.InheritRotation, 4, 1f);                // 8 foot-D
+        Bone("つま先D", 8);                                                    // 9 toe-D (plain)
+
+        // Mesh weighted only to the D bones (6,7,8,9); FK bones stay empty.
+        foreach (var b in new[] { 6, 7, 8, 9 })
+            model.Vertices.Add(new PmxVertex { Weights = new[] { new PmxBoneWeight(b, 1f) } });
+
+        var map = HumanoidMapper.Map(model);
+        Assert.Equal(6, map[VrmHumanBone.LeftUpperLeg]); // 左足 -> 足D
+        Assert.Equal(7, map[VrmHumanBone.LeftLowerLeg]); // 左ひざ -> ひざD
+        Assert.Equal(8, map[VrmHumanBone.LeftFoot]);     // 左足首 -> 足首D
+        Assert.Equal(9, map[VrmHumanBone.LeftToes]);     // 左つま先 -> つま先D (descendant of foot-D)
+    }
+
+    [Fact]
     public void Hips_is_reanchored_to_pelvis_lca()
     {
         // センター(0) -> 腰(1) -> { 上半身(2)=spine, 下半身(3) -> 左足(4), 右足(5) }

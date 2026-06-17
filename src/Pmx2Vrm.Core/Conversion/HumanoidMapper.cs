@@ -27,7 +27,63 @@ public static class HumanoidMapper
         }
 
         RefineHips(model, result);
+        RemapToDeformBones(model, result);
         return result;
+    }
+
+    /// <summary>
+    /// Re-target humanoid slots onto the bone that actually carries the mesh.
+    /// MMD rigs often skin the body to "D" deform bones that copy an FK control
+    /// bone via append/grant (付与) rotation, leaving the FK bone (the one matched
+    /// by name) with zero weights. Mapping humanoid to the empty FK bone means
+    /// Unity animates a bone with no mesh, so e.g. the legs never deform. For
+    /// each humanoid bone whose matched bone has no weights, switch to the
+    /// mesh-bearing append-copy (and, for leaf bones like toes, a mesh-bearing
+    /// descendant of the already-remapped parent).
+    /// </summary>
+    private static void RemapToDeformBones(PmxModel model, Dictionary<VrmHumanBone, int> map)
+    {
+        var vtx = new int[model.Bones.Count];
+        foreach (var v in model.Vertices)
+            foreach (var w in v.Weights)
+                if (w.Weight > 0f && (uint)w.BoneIndex < vtx.Length) vtx[w.BoneIndex]++;
+
+        // d copies bone i's rotation via append/grant at (near) full weight.
+        var twins = new Dictionary<int, List<int>>();
+        for (int d = 0; d < model.Bones.Count; d++)
+        {
+            var b = model.Bones[d];
+            if (b.HasFlag(PmxBoneFlags.InheritRotation) && b.InheritParentIndex >= 0 && b.InheritWeight > 0.5f)
+                (twins.TryGetValue(b.InheritParentIndex, out var l) ? l : twins[b.InheritParentIndex] = new()).Add(d);
+        }
+
+        // Pass 1: FK control bone -> its mesh-bearing append twin.
+        foreach (var h in map.Keys.ToList())
+        {
+            int fk = map[h];
+            if (!twins.TryGetValue(fk, out var cands)) continue;
+            int best = fk, bestVtx = vtx[fk];
+            foreach (var d in cands)
+                if (vtx[d] > bestVtx) { best = d; bestVtx = vtx[d]; }
+            if (best != fk) map[h] = best;
+        }
+
+        // Pass 2: leaf bones (toes) with no twin -> the mesh-bearing descendant
+        // of the already-remapped parent (e.g. toe deform bone under foot-D).
+        foreach (var (leaf, parent) in new[]
+        {
+            (VrmHumanBone.LeftToes, VrmHumanBone.LeftFoot),
+            (VrmHumanBone.RightToes, VrmHumanBone.RightFoot),
+        })
+        {
+            if (!map.TryGetValue(leaf, out var cur) || vtx[cur] > 0) continue;
+            if (!map.TryGetValue(parent, out var p)) continue;
+            int best = -1, bestVtx = 0;
+            for (int i = 0; i < model.Bones.Count; i++)
+                if (vtx[i] > bestVtx && !map.ContainsValue(i) && IsAncestorOrSelf(model, p, i) && i != p)
+                { best = i; bestVtx = vtx[i]; }
+            if (best >= 0) map[leaf] = best;
+        }
     }
 
     /// <summary>
