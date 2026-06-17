@@ -22,8 +22,14 @@ public static class BodyColliders
 {
     /// <param name="humanoid">VRM humanoid bone → glTF node index.</param>
     /// <param name="worldPos">Final (T-posed, grounded) world position per node.</param>
+    /// <param name="forwardZ">
+    /// Sign of the model's facing direction in glTF +Z: +1 for VRM 0.x (faces +Z),
+    /// -1 for VRM 1.0 (faces -Z). The hips capsule is nudged this way so it sits
+    /// on the (forward) pelvis rather than engulfing the back skirt that hangs
+    /// behind it. 0 disables the nudge.
+    /// </param>
     public static List<SpringColliderDef> Build(
-        IReadOnlyDictionary<VrmHumanBone, int> humanoid, Vector3[] worldPos)
+        IReadOnlyDictionary<VrmHumanBone, int> humanoid, Vector3[] worldPos, float forwardZ = 0f)
     {
         var list = new List<SpringColliderDef>();
         if (humanoid.Count == 0) return list;
@@ -42,7 +48,7 @@ public static class BodyColliders
 
         bool Has(VrmHumanBone b) => humanoid.TryGetValue(b, out int n) && n >= 0 && n < worldPos.Length;
 
-        void Capsule(VrmHumanBone from, VrmHumanBone to, float radius)
+        void Capsule(VrmHumanBone from, VrmHumanBone to, float radius, Vector3 shift = default)
         {
             if (!Has(from) || !Has(to)) return;
             int a = humanoid[from], b = humanoid[to];
@@ -50,9 +56,9 @@ public static class BodyColliders
             {
                 NodeIndex = a,
                 Shape = SpringColliderShape.Capsule,
-                Offset = Vector3.Zero,
+                Offset = shift,
                 Radius = radius * s,
-                TailOffset = worldPos[b] - worldPos[a],
+                TailOffset = (worldPos[b] - worldPos[a]) + shift,
             });
         }
 
@@ -72,12 +78,21 @@ public static class BodyColliders
         // chest → neck, so the trunk is covered top to bottom. Radii are kept
         // snug to the body — a fat hip/torso capsule shoves the skirt outward and
         // rides it up, so the trunk colliders sit just inside the silhouette.
-        Capsule(VrmHumanBone.Hips, VrmHumanBone.Spine, 0.085f);
+        // The hip bone sits forward of the pelvis, so the back skirt hangs behind
+        // it. A hips capsule centred on the bone engulfs the upper back-skirt
+        // segments (even allowing for their hit radius) and ejects them up-and-back
+        // ("standing on end"). Keep the radius moderate AND nudge the capsule
+        // toward the model's front so its back surface clears the back skirt while
+        // the front/sides still drape over it.
+        Capsule(VrmHumanBone.Hips, VrmHumanBone.Spine, 0.095f, new Vector3(0, 0, forwardZ * 0.035f * s));
         VrmHumanBone upper =
             Has(VrmHumanBone.Chest) ? VrmHumanBone.Chest :
             Has(VrmHumanBone.UpperChest) ? VrmHumanBone.UpperChest :
             Has(VrmHumanBone.Neck) ? VrmHumanBone.Neck : VrmHumanBone.Head;
-        Capsule(VrmHumanBone.Spine, upper, 0.075f);
+        // The spine capsule's lower end is right where the skirt attaches at the
+        // waist; nudge it forward too (less than the hips) so its back surface
+        // clears the back-skirt root.
+        Capsule(VrmHumanBone.Spine, upper, 0.075f, new Vector3(0, 0, forwardZ * 0.025f * s));
         if (Has(VrmHumanBone.Chest) && Has(VrmHumanBone.Neck))
             Capsule(VrmHumanBone.Chest, VrmHumanBone.Neck, 0.065f);
 
@@ -92,10 +107,10 @@ public static class BodyColliders
 
         // Legs (kept a touch slimmer than the body so a skirt still drapes past
         // them rather than being shoved up).
-        Capsule(VrmHumanBone.LeftUpperLeg, VrmHumanBone.LeftLowerLeg, 0.06f);
-        Capsule(VrmHumanBone.LeftLowerLeg, VrmHumanBone.LeftFoot, 0.048f);
-        Capsule(VrmHumanBone.RightUpperLeg, VrmHumanBone.RightLowerLeg, 0.06f);
-        Capsule(VrmHumanBone.RightLowerLeg, VrmHumanBone.RightFoot, 0.048f);
+        Capsule(VrmHumanBone.LeftUpperLeg, VrmHumanBone.LeftLowerLeg, 0.083f);
+        Capsule(VrmHumanBone.LeftLowerLeg, VrmHumanBone.LeftFoot, 0.05f);
+        Capsule(VrmHumanBone.RightUpperLeg, VrmHumanBone.RightLowerLeg, 0.083f);
+        Capsule(VrmHumanBone.RightLowerLeg, VrmHumanBone.RightFoot, 0.05f);
 
         return list;
     }

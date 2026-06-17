@@ -43,7 +43,34 @@ public sealed class VrmExtensionBuilder
         root.Extensions["VRMC_vrm"] = vrm;
 
         ApplyMToonVrm1(root, i.Materials);
-        ApplySpringVrm1(root, i.Physics);
+        ApplySpringVrm1(root, i.Physics, i.Humanoid);
+    }
+
+    // ===================== spring collider grouping ========================
+    // A skirt must collide only with the LEG colliders (so it doesn't clip the
+    // legs when walking) — never with the torso/pelvis, which would flare it and
+    // stand the back panel on end. Everything else (hair, sleeves) collides with
+    // the body colliders (head/torso/arms) but not the legs.
+
+    private static readonly VrmHumanBone[] LegBones =
+    {
+        VrmHumanBone.LeftUpperLeg, VrmHumanBone.LeftLowerLeg,
+        VrmHumanBone.RightUpperLeg, VrmHumanBone.RightLowerLeg,
+    };
+
+    private static HashSet<int> LegNodes(IReadOnlyDictionary<VrmHumanBone, int> humanoid)
+    {
+        var set = new HashSet<int>();
+        foreach (var b in LegBones)
+            if (humanoid.TryGetValue(b, out int n)) set.Add(n);
+        return set;
+    }
+
+    private static bool IsSkirt(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return false;
+        return name.ToLowerInvariant().Contains("skirt")
+            || name.Contains("スカート") || name.Contains("スカ") || name.Contains("裙");
     }
 
     private static Dictionary<string, object> Vrm1Meta(VrmMeta m)
@@ -140,7 +167,8 @@ public sealed class VrmExtensionBuilder
         }
     }
 
-    private static void ApplySpringVrm1(GltfRoot root, ConvertedPhysics physics)
+    private static void ApplySpringVrm1(GltfRoot root, ConvertedPhysics physics,
+        IReadOnlyDictionary<VrmHumanBone, int> humanoid)
     {
         if (physics.Chains.Count == 0 && physics.Colliders.Count == 0) return;
         root.ExtensionsUsed.Add("VRMC_springBone");
@@ -164,20 +192,30 @@ public sealed class VrmExtensionBuilder
             return (object)new Dictionary<string, object> { ["node"] = c.NodeIndex, ["shape"] = shape };
         }).ToArray();
 
+        // Split colliders into a "legs" group and a "body" group (everything else).
+        var legNodes = LegNodes(humanoid);
+        var legIdx = new List<int>();
+        var bodyIdx = new List<int>();
+        for (int k = 0; k < physics.Colliders.Count; k++)
+            (legNodes.Contains(physics.Colliders[k].NodeIndex) ? legIdx : bodyIdx).Add(k);
+
         var groups = new List<object>();
-        var groupRefs = new List<int>();
-        if (colliders.Length > 0)
+        int bodyGroup = -1, legGroup = -1;
+        if (bodyIdx.Count > 0)
         {
-            groups.Add(new Dictionary<string, object>
-            {
-                ["name"] = "colliders",
-                ["colliders"] = Enumerable.Range(0, colliders.Length).ToArray(),
-            });
-            groupRefs.Add(0);
+            bodyGroup = groups.Count;
+            groups.Add(new Dictionary<string, object> { ["name"] = "body", ["colliders"] = bodyIdx.ToArray() });
+        }
+        if (legIdx.Count > 0)
+        {
+            legGroup = groups.Count;
+            groups.Add(new Dictionary<string, object> { ["name"] = "legs", ["colliders"] = legIdx.ToArray() });
         }
 
         var springs = physics.Chains.Select(ch =>
         {
+            int g = IsSkirt(ch.Name) ? legGroup : bodyGroup;
+            var refs = g >= 0 ? new[] { g } : Array.Empty<int>();
             var spring = new Dictionary<string, object>
             {
                 ["name"] = ch.Name,
@@ -190,7 +228,7 @@ public sealed class VrmExtensionBuilder
                     ["gravityDir"] = Xyz(ch.GravityDir),
                     ["dragForce"] = ch.DragForce,
                 }).ToArray(),
-                ["colliderGroups"] = groupRefs.ToArray(),
+                ["colliderGroups"] = refs,
             };
             if (ch.Center >= 0) spring["center"] = ch.Center;
             return (object)spring;
@@ -219,7 +257,7 @@ public sealed class VrmExtensionBuilder
             ["humanoid"] = new Dictionary<string, object> { ["humanBones"] = Vrm0HumanBones(i.Humanoid) },
             ["firstPerson"] = new Dictionary<string, object> { ["firstPersonBone"] = HeadNode(i.Humanoid) },
             ["blendShapeMaster"] = new Dictionary<string, object> { ["blendShapeGroups"] = Vrm0BlendShapes(i.Expressions, i.MeshIndex) },
-            ["secondaryAnimation"] = Vrm0Secondary(i.Physics),
+            ["secondaryAnimation"] = Vrm0Secondary(i.Physics, i.Humanoid),
             ["materialProperties"] = Vrm0Materials(i.Materials),
         };
         root.Extensions["VRM"] = vrm;
@@ -264,17 +302,26 @@ public sealed class VrmExtensionBuilder
             ["materialValues"] = Array.Empty<object>(),
         }).ToArray();
 
-    private static Dictionary<string, object> Vrm0Secondary(ConvertedPhysics physics)
+    private static Dictionary<string, object> Vrm0Secondary(ConvertedPhysics physics,
+        IReadOnlyDictionary<VrmHumanBone, int> humanoid)
     {
-        // VRM 0.x secondaryAnimation colliders are spheres only, so a capsule is
+        // VRM 0.x colliderGroups are per-node. Build one per node, remembering its
+        // node so each bone group can reference just the leg groups (skirts) or the
+        // body groups (hair/sleeves). Colliders are spheres only, so a capsule is
         // approximated by a short string of spheres laid along its axis.
-        var colliderGroups = physics.Colliders
-            .GroupBy(c => c.NodeIndex)
+        var byNode = physics.Colliders.GroupBy(c => c.NodeIndex).ToArray();
+        var colliderGroups = byNode
             .Select(g => (object)new Dictionary<string, object>
             {
                 ["node"] = g.Key,
                 ["colliders"] = g.SelectMany(Vrm0Spheres).ToArray(),
             }).ToArray();
+
+        var legNodes = LegNodes(humanoid);
+        var legGroups = new List<int>();
+        var bodyGroups = new List<int>();
+        for (int gi = 0; gi < byNode.Length; gi++)
+            (legNodes.Contains(byNode[gi].Key) ? legGroups : bodyGroups).Add(gi);
 
         // VRM 0.x grows a verlet chain from each root in `bones`, following bone
         // children. List only top-level swaying roots; the engine grows each into
@@ -291,7 +338,7 @@ public sealed class VrmExtensionBuilder
                 ["center"] = ch.Center,
                 ["hitRadius"] = ch.Joints.Count > 0 ? ch.Joints[^1].HitRadius : 0.02f,
                 ["bones"] = new[] { ch.FirstDynamicNode },
-                ["colliderGroups"] = colliderGroups.Length > 0 ? Enumerable.Range(0, colliderGroups.Length).ToArray() : Array.Empty<int>(),
+                ["colliderGroups"] = (IsSkirt(ch.Name) ? legGroups : bodyGroups).ToArray(),
             }).ToArray();
 
         return new Dictionary<string, object>

@@ -84,6 +84,26 @@ public class BodyCollidersTests
     }
 
     [Fact]
+    public void Hips_capsule_is_nudged_toward_the_model_front()
+    {
+        var (map, pos) = Rig();
+        var hipsNode = map[VrmHumanBone.Hips];
+
+        // forwardZ = +1 shifts the hips capsule toward +Z (and -1 toward -Z),
+        // so its back surface clears the skirt hanging behind the hip bone.
+        var fwd = BodyColliders.Build(map, pos, forwardZ: 1f)
+            .Single(c => c.NodeIndex == hipsNode && c.Shape == SpringColliderShape.Capsule);
+        var none = BodyColliders.Build(map, pos, forwardZ: 0f)
+            .Single(c => c.NodeIndex == hipsNode && c.Shape == SpringColliderShape.Capsule);
+
+        Assert.True(fwd.Offset.Z > 0.001f, $"hips capsule should shift +Z, was {fwd.Offset.Z}");
+        Assert.Equal(0f, none.Offset.Z, 5);
+        // The shift moves the whole capsule (offset and tail) by the same amount,
+        // so its length/orientation are preserved.
+        Assert.Equal(fwd.Offset.Z, fwd.TailOffset.Z - none.TailOffset.Z, 4);
+    }
+
+    [Fact]
     public void Empty_humanoid_yields_no_colliders()
     {
         Assert.Empty(BodyColliders.Build(new Dictionary<VrmHumanBone, int>(), Array.Empty<Vector3>()));
