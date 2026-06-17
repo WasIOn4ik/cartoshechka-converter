@@ -56,17 +56,23 @@ public sealed class TPoseNormalizer
         Pair(VrmHumanBone.LeftLowerArm, VrmHumanBone.LeftHand, new Vector3(-1, 0, 0));
         Pair(VrmHumanBone.RightUpperArm, VrmHumanBone.RightLowerArm, new Vector3(1, 0, 0));
         Pair(VrmHumanBone.RightLowerArm, VrmHumanBone.RightHand, new Vector3(1, 0, 0));
-        // Legs straightened mostly vertical (-Y) with a slight forward lean.
-        // VRM 0.x is imported with ReverseZ — the knee must lean toward -Z in
-        // glTF so that after import it ends up at +Z (forward) in Unity.
-        // VRM 1.0 is imported with ReverseX — the knee can lean toward +Z in
-        // glTF since ReverseX does not flip Z.
-        float kneeZ = _version == VrmVersion.Vrm0 ? -0.5f : 0.5f;
-        var kneeFwd = Vector3.Normalize(new Vector3(0, -1, kneeZ));
-        Pair(VrmHumanBone.LeftUpperLeg, VrmHumanBone.LeftLowerLeg, kneeFwd);
-        Pair(VrmHumanBone.LeftLowerLeg, VrmHumanBone.LeftFoot, new Vector3(0, -1, 0));
-        Pair(VrmHumanBone.RightUpperLeg, VrmHumanBone.RightLowerLeg, kneeFwd);
-        Pair(VrmHumanBone.RightLowerLeg, VrmHumanBone.RightFoot, new Vector3(0, -1, 0));
+        // Legs are kept nearly vertical (-Y) with only a SLIGHT forward knee
+        // bend. Unity's foot-IK solver needs the knee clearly forward to know
+        // which way to flex, but a large bend (was 0.5 ≈ 27°) looks like a squat
+        // AND pushes the feet ahead of the body. So bend the thigh forward by a
+        // gentle ~8° and lean the shin back by the same amount, which keeps the
+        // ankle under the hip while still giving IK its hint.
+        // Forward sign is version-specific: VRM 0.x is imported with ReverseZ,
+        // so the knee must lean toward -Z in glTF to end up forward (+Z) in Unity;
+        // VRM 1.0 (ReverseX) keeps Z, so it leans toward +Z.
+        const float kneeBias = 0.14f; // tan(angle); ~8° from vertical
+        float fwd = _version == VrmVersion.Vrm0 ? -1f : 1f;
+        var thigh = Vector3.Normalize(new Vector3(0, -1, fwd * kneeBias));
+        var shin = Vector3.Normalize(new Vector3(0, -1, -fwd * kneeBias));
+        Pair(VrmHumanBone.LeftUpperLeg, VrmHumanBone.LeftLowerLeg, thigh);
+        Pair(VrmHumanBone.LeftLowerLeg, VrmHumanBone.LeftFoot, shin);
+        Pair(VrmHumanBone.RightUpperLeg, VrmHumanBone.RightLowerLeg, thigh);
+        Pair(VrmHumanBone.RightLowerLeg, VrmHumanBone.RightFoot, shin);
 
         if (straighten.Count == 0) return; // nothing to do (no arms mapped)
 

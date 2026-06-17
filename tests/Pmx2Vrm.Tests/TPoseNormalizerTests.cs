@@ -98,6 +98,36 @@ public class TPoseNormalizerTests
     }
 
     [Fact]
+    public void Leg_gets_a_slight_forward_knee_with_ankle_under_hip()
+    {
+        // Perfectly vertical A-pose leg; after T-pose it should gain a gentle
+        // forward knee (for IK) while the ankle stays roughly under the hip.
+        var nodes = new List<SkeletonNode>
+        {
+            new() { Name = "hips",     ParentIndex = -1, LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(0f, 1.0f, 0f) },
+            new() { Name = "upperLeg", ParentIndex = 0,  LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(0.1f, 0.9f, 0f) },
+            new() { Name = "lowerLeg", ParentIndex = 1,  LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(0.1f, 0.5f, 0f) },
+            new() { Name = "foot",     ParentIndex = 2,  LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(0.1f, 0.1f, 0f) },
+        };
+        var humanoid = new Dictionary<VrmHumanBone, int>
+        {
+            [VrmHumanBone.LeftUpperLeg] = 1,
+            [VrmHumanBone.LeftLowerLeg] = 2,
+            [VrmHumanBone.LeftFoot] = 3,
+        };
+        var skel = new ConvertedSkeleton { Nodes = nodes, Humanoid = humanoid };
+        var t = new TPoseNormalizer(skel, enabled: true, VrmVersion.Vrm1);
+
+        float thighLen = Vector3.Distance(nodes[1].WorldPosition, nodes[2].WorldPosition);
+        // knee pushed forward (+Z for VRM 1.0), by a small fraction of the thigh.
+        float kneeZ = t.NewWorldPos[2].Z;
+        Assert.True(kneeZ > 0.02f, $"knee should bend forward, was {kneeZ}");
+        Assert.True(kneeZ < 0.3f * thighLen, $"knee bend should be slight, was {kneeZ}");
+        // ankle returns under the hip (small |Z|), not thrown forward.
+        Assert.True(MathF.Abs(t.NewWorldPos[3].Z) < 0.02f, $"ankle Z should be ~0, was {t.NewWorldPos[3].Z}");
+    }
+
+    [Fact]
     public void Disabled_is_identity()
     {
         var t = new TPoseNormalizer(ArmSkeleton(), enabled: false);
