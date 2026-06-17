@@ -115,16 +115,18 @@ public class PhysicsConverterTests
         });
 
         var chain = Assert.Single(Make().Convert(model).Chains);
-        Assert.Equal(1.0f, chain.Stiffness, 3);               // restoring force kept (short chain)
+        Assert.Equal(1.0f, chain.Stiffness, 3);               // restoring force kept
         Assert.InRange(chain.DragForce, 0.6f, 0.95f);         // heavy damping
-        Assert.Equal(0.845f, chain.DragForce, 3);             // 0.6 + 0.7*0.35, no length bonus
+        Assert.Equal(0.845f, chain.DragForce, 3);             // 0.6 + 0.7*0.35
         Assert.Equal(0.1f, chain.GravityPower, 3);            // gentle settle
     }
 
     [Fact]
-    public void Long_chains_are_damped_harder_and_softened()
+    public void Stiffness_stays_high_so_hair_does_not_sag_into_colliders()
     {
         // A long single hair strand: root + 7 dynamic children in a line.
+        // Softening long chains made hair sag into the body colliders and jitter
+        // worse, so stiffness must stay at the full restoring value.
         var model = new PmxModel();
         model.Bones.Add(new PmxBone { NameUniversal = "hairRoot", ParentIndex = -1 });
         for (int i = 1; i <= 7; i++)
@@ -134,10 +136,6 @@ public class PhysicsConverterTests
 
         var chain = Assert.Single(Make().Convert(model).Chains);
         Assert.True(chain.Joints.Count >= 6, $"expected a long chain, got {chain.Joints.Count}");
-        // Long whips jitter, so they get extra drag and softened stiffness.
-        // Base (damping 0) is 0.6; a 7-joint chain adds the capped 0.25 length
-        // bonus -> 0.8 (vs a short chain which stays at 0.6).
-        Assert.Equal(0.8f, chain.DragForce, 3);
-        Assert.Equal(0.7f, chain.Stiffness, 3);
+        Assert.Equal(1.0f, chain.Stiffness, 3);
     }
 }

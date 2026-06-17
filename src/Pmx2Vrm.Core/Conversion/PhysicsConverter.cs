@@ -270,31 +270,19 @@ public sealed class PhysicsConverter
         }
 
         var rootBody = dynamicByBone[first];
-        // Number of swaying joints (exclude the fixed anchor head).
-        int swing = joints.Count - (head != first ? 1 : 0);
         return new SpringChainDef
         {
             Name = model.Bones[first].NameUniversal is { Length: > 0 } n ? n : "spring",
-            DragForce = ChainDrag(rootBody.AngularDamping, swing),
-            Stiffness = ChainStiffness(swing),
+            // Bullet damping does NOT map linearly to VRM's verlet spring; use
+            // well-behaved defaults nudged by the body's angular damping. Keep
+            // stiffness high: softening it lets long hair sag INTO the body
+            // colliders, which then eject it every frame and jitter worse.
+            DragForce = Math.Clamp(0.6f + rootBody.AngularDamping * 0.35f, 0.6f, 0.95f),
+            Stiffness = 1.0f,
             GravityPower = 0.1f,
             Center = _centerNode,
             FirstDynamicNode = _boneToNode(first),
             Joints = joints,
         };
     }
-
-    // Bullet damping does NOT map linearly to VRM's verlet spring; use
-    // well-behaved defaults nudged by the body's angular damping. Long hair
-    // chains (many joints) build up high-frequency oscillation and jitter, so
-    // damp them progressively harder and soften their stiffness a touch — the
-    // restoring snap is what feeds the jitter on a long whip.
-    private static float ChainDrag(float angularDamping, int swingJoints)
-    {
-        float lengthDamp = Math.Clamp((swingJoints - 3) * 0.05f, 0f, 0.25f);
-        return Math.Clamp(0.6f + angularDamping * 0.35f + lengthDamp, 0.6f, 0.98f);
-    }
-
-    private static float ChainStiffness(int swingJoints) =>
-        swingJoints > 5 ? 0.7f : 1.0f;
 }
