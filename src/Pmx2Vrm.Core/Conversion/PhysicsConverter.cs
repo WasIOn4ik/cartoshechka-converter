@@ -220,7 +220,7 @@ public sealed class PhysicsConverter
             Name = model.Bones[root].NameUniversal is { Length: > 0 } n ? n : "spring",
             DragForce = Math.Clamp(0.6f + body.AngularDamping * 0.35f, 0.6f, 0.95f),
             Stiffness = 1.0f,
-            GravityPower = 0.1f,
+            GravityPower = 0.3f,
             Center = _centerNode,
             FirstDynamicNode = _boneToNode(root),
             TreeRoot = true,
@@ -279,7 +279,7 @@ public sealed class PhysicsConverter
             // colliders, which then eject it every frame and jitter worse.
             DragForce = Math.Clamp(0.6f + rootBody.AngularDamping * 0.35f, 0.6f, 0.95f),
             Stiffness = 1.0f,
-            GravityPower = 0.1f,
+            GravityPower = 0.3f,
             Center = _centerNode,
             FirstDynamicNode = _boneToNode(first),
             Joints = joints,

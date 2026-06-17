@@ -55,20 +55,28 @@ public sealed class VrmConverter
 
         BuildScene(root, skeleton, meshNodeIndex);
 
-        // Spring inertia is relative to world space (center = -1). Anchoring to
-        // an animated bone (hips) drives the springs with every idle sway and
-        // makes hair/cloth jitter; known-good VRMs (VRoid/Blender exports) use
-        // world-space inertia.
-        //
+        // Spring inertia is measured relative to the hips ("center" node) rather
+        // than world space. With world-space inertia, an animation that moves the
+        // whole body fast (a bow, a lean, root translation) hits the springs with
+        // a big impulse and flings the skirt back up and the hair forward. Anchoring
+        // the reference frame to the hips subtracts that body-wide motion, so only
+        // local bone rotation drives the sway — hair still swings when the head
+        // turns, but the skirt no longer flies during animation.
+        int centerNode = skeleton.Humanoid.TryGetValue(VrmHumanBone.Hips, out int hipsNode)
+            ? hipsNode : -1;
+
         // Colliders are a curated set of body-sized capsules built from the final
         // humanoid skeleton (see BodyColliders), NOT the raw MMD rigid bodies:
         // dumping every MMD body made cloth jitter, while a handful of body
         // capsules let hair/skirt drape cleanly. Spring chains are still built
         // from the MMD dynamic bodies; we just swap in the curated colliders.
         var springs = new PhysicsConverter(coords, b => b)
-            .Convert(model, skeleton.Humanoid.Values, centerNode: -1, includeColliders: false);
+            .Convert(model, skeleton.Humanoid.Values, centerNode, includeColliders: false);
+        // Facing direction in glTF +Z: VRM 0.x (X-reflected) faces +Z, VRM 1.0
+        // (Z-reflected) faces -Z. The hips collider is nudged this way.
+        float forwardZ = options.Version == VrmVersion.Vrm1 ? -1f : 1f;
         var colliders = options.SpringColliders
-            ? BodyColliders.Build(skeleton.Humanoid, tpose.NewWorldPos)
+            ? BodyColliders.Build(skeleton.Humanoid, tpose.NewWorldPos, forwardZ)
             : new List<SpringColliderDef>();
         var physics = new ConvertedPhysics
         {

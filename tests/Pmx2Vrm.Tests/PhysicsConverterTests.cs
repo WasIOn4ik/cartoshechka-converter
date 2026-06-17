@@ -118,7 +118,7 @@ public class PhysicsConverterTests
         Assert.Equal(1.0f, chain.Stiffness, 3);               // restoring force kept
         Assert.InRange(chain.DragForce, 0.6f, 0.95f);         // heavy damping
         Assert.Equal(0.845f, chain.DragForce, 3);             // 0.6 + 0.7*0.35
-        Assert.Equal(0.1f, chain.GravityPower, 3);            // gentle settle
+        Assert.Equal(0.3f, chain.GravityPower, 3);            // gravity pull so hair/skirt hangs
     }
 
     [Fact]
