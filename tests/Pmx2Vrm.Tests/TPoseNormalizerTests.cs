@@ -9,13 +9,14 @@ public class TPoseNormalizerTests
 {
     private static ConvertedSkeleton ArmSkeleton()
     {
-        // A-pose left arm hanging down-and-out (at -X side, VRM convention).
+        // A-pose left arm hanging down-and-out. In glTF space (Z-reflected from
+        // MMD) the left side sits on +X.
         var nodes = new List<SkeletonNode>
         {
             new() { Name = "hips",     ParentIndex = -1, LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(0f, 1.0f, 0f) },
-            new() { Name = "upperArm", ParentIndex = 0,  LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(-0.1f, 1.3f, 0f) },
-            new() { Name = "lowerArm", ParentIndex = 1,  LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(-0.25f, 1.1f, 0f) },
-            new() { Name = "hand",     ParentIndex = 2,  LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(-0.4f, 0.9f, 0f) },
+            new() { Name = "upperArm", ParentIndex = 0,  LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(0.1f, 1.3f, 0f) },
+            new() { Name = "lowerArm", ParentIndex = 1,  LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(0.25f, 1.1f, 0f) },
+            new() { Name = "hand",     ParentIndex = 2,  LocalTranslation = Vector3.Zero, WorldPosition = new Vector3(0.4f, 0.9f, 0f) },
         };
         var humanoid = new Dictionary<VrmHumanBone, int>
         {
@@ -28,7 +29,7 @@ public class TPoseNormalizerTests
     }
 
     [Fact]
-    public void Straightens_left_arm_horizontal_along_minus_x()
+    public void Straightens_left_arm_horizontal_along_plus_x()
     {
         var t = new TPoseNormalizer(ArmSkeleton(), enabled: true);
 
@@ -37,9 +38,9 @@ public class TPoseNormalizerTests
         Assert.Equal(armY, t.NewWorldPos[2].Y, 4);
         Assert.Equal(armY, t.NewWorldPos[3].Y, 4);
 
-        // and extend toward -X (VRM left), keeping segment lengths.
-        Assert.True(t.NewWorldPos[3].X < t.NewWorldPos[2].X);
-        Assert.True(t.NewWorldPos[2].X < t.NewWorldPos[1].X);
+        // and extend toward +X (left side in glTF space), keeping segment lengths.
+        Assert.True(t.NewWorldPos[3].X > t.NewWorldPos[2].X);
+        Assert.True(t.NewWorldPos[2].X > t.NewWorldPos[1].X);
     }
 
     [Fact]
