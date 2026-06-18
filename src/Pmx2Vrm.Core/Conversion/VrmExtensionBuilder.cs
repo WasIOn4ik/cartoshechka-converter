@@ -375,12 +375,31 @@ public sealed class VrmExtensionBuilder
             var floatProps = new Dictionary<string, object>
             {
                 ["_BlendMode"] = d.AlphaMode == MToonAlphaMode.Blend ? 2f : d.AlphaMode == MToonAlphaMode.Mask ? 1f : 0f,
-                ["_Cutoff"] = d.AlphaCutoff,
                 ["_OutlineWidthMode"] = d.OutlineMode == MToonOutlineMode.None ? 0f : 1f,
                 ["_OutlineWidth"] = d.OutlineWidth * 100f,
                 ["_ShadeShift"] = -0.05f,
                 ["_ShadeToony"] = 0.95f,
             };
+            if (d.AlphaMode == MToonAlphaMode.Mask)
+                floatProps["_Cutoff"] = d.AlphaCutoff;
+
+            var keywords = new Dictionary<string, object>();
+            if (d.AlphaMode == MToonAlphaMode.Blend) keywords["_ALPHABLEND_ON"] = true;
+            else if (d.AlphaMode == MToonAlphaMode.Mask) keywords["_ALPHATEST_ON"] = true;
+
+            string renderType = d.AlphaMode switch
+            {
+                MToonAlphaMode.Blend => "Transparent",
+                MToonAlphaMode.Mask => "TransparentCutout",
+                _ => "Opaque",
+            };
+            int renderQueue = d.AlphaMode switch
+            {
+                MToonAlphaMode.Blend => 3000,
+                MToonAlphaMode.Mask => 2450,
+                _ => 2000,
+            };
+
             var vectorProps = new Dictionary<string, object>
             {
                 ["_Color"] = Rgba(d.BaseColor),
@@ -397,12 +416,12 @@ public sealed class VrmExtensionBuilder
             {
                 ["name"] = d.Name,
                 ["shader"] = "VRM/MToon",
-                ["renderQueue"] = 2000,
+                ["renderQueue"] = renderQueue,
                 ["floatProperties"] = floatProps,
                 ["vectorProperties"] = vectorProps,
                 ["textureProperties"] = textureProps,
-                ["keywordMap"] = new Dictionary<string, object>(),
-                ["tagMap"] = new Dictionary<string, object> { ["RenderType"] = d.AlphaMode == MToonAlphaMode.Blend ? "Transparent" : "Opaque" },
+                ["keywordMap"] = keywords,
+                ["tagMap"] = new Dictionary<string, object> { ["RenderType"] = renderType },
             };
         }).ToArray();
 
