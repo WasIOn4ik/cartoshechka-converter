@@ -76,7 +76,7 @@ public sealed class VrmConverter
         // (Z-reflected) faces -Z. The hips collider is nudged this way.
         float forwardZ = options.Version == VrmVersion.Vrm1 ? -1f : 1f;
         var colliders = options.SpringColliders
-            ? BodyColliders.Build(skeleton.Humanoid, tpose.NewWorldPos, forwardZ)
+            ? BodyColliders.Build(skeleton.Humanoid, tpose.NewWorldPos, forwardZ, mesh.SkinVertices)
             : new List<SpringColliderDef>();
         if (options.Log != null)
             BodyColliders.Report(colliders, idx => root.Nodes[idx].Name ?? idx.ToString(), options.Log);

@@ -29,7 +29,8 @@ public static class BodyColliders
     /// behind it. 0 disables the nudge.
     /// </param>
     public static List<SpringColliderDef> Build(
-        IReadOnlyDictionary<VrmHumanBone, int> humanoid, Vector3[] worldPos, float forwardZ = 0f)
+        IReadOnlyDictionary<VrmHumanBone, int> humanoid, Vector3[] worldPos, float forwardZ = 0f,
+        SkinVertex[]? skinVerts = null)
     {
         var list = new List<SpringColliderDef>();
         if (humanoid.Count == 0) return list;
@@ -48,29 +49,37 @@ public static class BodyColliders
 
         bool Has(VrmHumanBone b) => humanoid.TryGetValue(b, out int n) && n >= 0 && n < worldPos.Length;
 
-        void Capsule(VrmHumanBone from, VrmHumanBone to, float radius, Vector3 shift = default)
+        void Capsule(VrmHumanBone from, VrmHumanBone to, float fallback, Vector3 shift = default)
         {
             if (!Has(from) || !Has(to)) return;
             int a = humanoid[from], b = humanoid[to];
+            float r = skinVerts != null
+                ? FitCapsuleRadius(a, b, worldPos, skinVerts, fallback * s)
+                : fallback * s;
             list.Add(new SpringColliderDef
             {
                 NodeIndex = a,
                 Shape = SpringColliderShape.Capsule,
                 Offset = shift,
-                Radius = radius * s,
+                Radius = r,
                 TailOffset = (worldPos[b] - worldPos[a]) + shift,
             });
         }
 
-        void Sphere(VrmHumanBone bone, Vector3 offset, float radius)
+        void Sphere(VrmHumanBone bone, Vector3 offset, float fallback)
         {
             if (!Has(bone)) return;
+            int nodeIdx = humanoid[bone];
+            Vector3 center = worldPos[nodeIdx] + offset * s;
+            float r = skinVerts != null
+                ? FitSphereRadius(nodeIdx, center, worldPos, skinVerts, fallback * s)
+                : fallback * s;
             list.Add(new SpringColliderDef
             {
-                NodeIndex = humanoid[bone],
+                NodeIndex = nodeIdx,
                 Shape = SpringColliderShape.Sphere,
                 Offset = offset * s,
-                Radius = radius * s,
+                Radius = r,
             });
         }
 
@@ -113,6 +122,56 @@ public static class BodyColliders
         Capsule(VrmHumanBone.RightLowerLeg, VrmHumanBone.RightFoot, 0.05f);
 
         return list;
+    }
+
+    /// <summary>
+    /// Max perpendicular distance from the capsule axis (nodeA→nodeB) for all
+    /// vertices weighted ≥ 0.15 to either endpoint and whose projection falls
+    /// within the segment (±5 cm margin). Falls back to <paramref name="fallback"/>
+    /// if fewer than 8 qualifying vertices are found.
+    /// </summary>
+    private static float FitCapsuleRadius(int nodeA, int nodeB, Vector3[] worldPos,
+        SkinVertex[] verts, float fallback, float weightThreshold = 0.15f)
+    {
+        var posA = worldPos[nodeA];
+        var axis = worldPos[nodeB] - posA;
+        float len = axis.Length();
+        if (len < 1e-4f) return fallback;
+        var axisN = axis / len;
+        const float margin = 0.05f;
+
+        float maxR = 0f;
+        int count = 0;
+        foreach (ref readonly var sv in verts.AsSpan())
+        {
+            float w = sv.WeightOf(nodeA) + sv.WeightOf(nodeB);
+            if (w < weightThreshold) continue;
+            float t = Vector3.Dot(sv.Position - posA, axisN);
+            if (t < -margin || t > len + margin) continue;
+            var perp = sv.Position - posA - axisN * t;
+            maxR = MathF.Max(maxR, perp.Length());
+            count++;
+        }
+        return count >= 8 ? maxR : fallback;
+    }
+
+    /// <summary>
+    /// Max distance from <paramref name="center"/> for all vertices weighted ≥ 0.15
+    /// to <paramref name="nodeIdx"/>. Falls back to <paramref name="fallback"/>
+    /// if fewer than 8 qualifying vertices are found.
+    /// </summary>
+    private static float FitSphereRadius(int nodeIdx, Vector3 center, Vector3[] worldPos,
+        SkinVertex[] verts, float fallback, float weightThreshold = 0.15f)
+    {
+        float maxR = 0f;
+        int count = 0;
+        foreach (ref readonly var sv in verts.AsSpan())
+        {
+            if (sv.WeightOf(nodeIdx) < weightThreshold) continue;
+            maxR = MathF.Max(maxR, Vector3.Distance(sv.Position, center));
+            count++;
+        }
+        return count >= 8 ? maxR : fallback;
     }
 
     public static void Report(IReadOnlyList<SpringColliderDef> colliders, Func<int, string> nodeName, Action<string> log)

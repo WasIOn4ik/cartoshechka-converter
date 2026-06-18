@@ -4,12 +4,27 @@ using Pmx2Vrm.Core.Pmx;
 
 namespace Pmx2Vrm.Core.Conversion;
 
+/// <summary>T-posed world position + skinning weights for one vertex, kept for collider fitting.</summary>
+public readonly struct SkinVertex(Vector3 position, ushort j0, ushort j1, ushort j2, ushort j3,
+    float w0, float w1, float w2, float w3)
+{
+    public readonly Vector3 Position = position;
+    public readonly ushort J0 = j0, J1 = j1, J2 = j2, J3 = j3;
+    public readonly float W0 = w0, W1 = w1, W2 = w2, W3 = w3;
+
+    public float WeightOf(int nodeIdx) =>
+        (J0 == nodeIdx ? W0 : 0f) + (J1 == nodeIdx ? W1 : 0f) +
+        (J2 == nodeIdx ? W2 : 0f) + (J3 == nodeIdx ? W3 : 0f);
+}
+
 public sealed class ConvertedMesh
 {
     public required GltfMesh Mesh { get; init; }
     public required int VertexCount { get; init; }
     /// <summary>glTF accessor index of POSITION, reused as the base for morph bounds.</summary>
     public required int PositionAccessor { get; init; }
+    /// <summary>T-posed positions + bone weights, used by BodyColliders to fit radii to the mesh.</summary>
+    public required SkinVertex[] SkinVertices { get; init; }
 }
 
 /// <summary>
@@ -31,6 +46,7 @@ public sealed class MeshConverter
         var uvs = new Vector2[n];
         var joints = new (ushort, ushort, ushort, ushort)[n];
         var weights = new Vector4[n];
+        var skinVerts = new SkinVertex[n];
 
         Span<ushort> j = stackalloc ushort[4];
         for (int i = 0; i < n; i++)
@@ -47,6 +63,11 @@ public sealed class MeshConverter
                 positions[i] = tpose.BakePosition(positions[i], j, weights[i]);
                 normals[i] = tpose.BakeNormal(normals[i], j, weights[i]);
             }
+
+            skinVerts[i] = new SkinVertex(
+                positions[i],
+                joints[i].Item1, joints[i].Item2, joints[i].Item3, joints[i].Item4,
+                weights[i].X, weights[i].Y, weights[i].Z, weights[i].W);
         }
 
         int posAcc = buffer.AddVec3(positions, computeBounds: true);
@@ -96,7 +117,7 @@ public sealed class MeshConverter
             });
         }
 
-        return new ConvertedMesh { Mesh = mesh, VertexCount = n, PositionAccessor = posAcc };
+        return new ConvertedMesh { Mesh = mesh, VertexCount = n, PositionAccessor = posAcc, SkinVertices = skinVerts };
     }
 
     private static Vector3 SafeDir(Vector3 d) => d.LengthSquared() < 1e-12f ? Vector3.UnitZ : d;
