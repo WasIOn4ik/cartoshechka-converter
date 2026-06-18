@@ -91,7 +91,6 @@ public class MorphConverterTests
             Mesh = new GltfMesh { Primitives = { new GltfPrimitive() } },
             VertexCount = 1,
             PositionAccessor = 0,
-            SkinVertices = Array.Empty<SkinVertex>(),
         };
         var morphs = new MorphConverter(coords).Convert(model, mesh, buffer);
 
@@ -117,7 +116,6 @@ public class MorphConverterTests
             Mesh = new GltfMesh { Primitives = { new GltfPrimitive() } },
             VertexCount = 1,
             PositionAccessor = 0,
-            SkinVertices = Array.Empty<SkinVertex>(),
         };
 
         var warnings = new List<string>();
