@@ -45,4 +45,5 @@ public sealed class ConversionOptions
     /// <summary>Re-pose the A-pose MMD skeleton into the VRM 1.0 T-pose. Default on.</summary>
     public bool TPose { get; set; } = true;
     public Action<string>? Warn { get; set; }
+    public Action<string>? Log { get; set; }
 }

@@ -78,6 +78,8 @@ public sealed class VrmConverter
         var colliders = options.SpringColliders
             ? BodyColliders.Build(skeleton.Humanoid, tpose.NewWorldPos, forwardZ)
             : new List<SpringColliderDef>();
+        if (options.Log != null)
+            BodyColliders.Report(colliders, idx => root.Nodes[idx].Name ?? idx.ToString(), options.Log);
         var physics = new ConvertedPhysics
         {
             Colliders = colliders,

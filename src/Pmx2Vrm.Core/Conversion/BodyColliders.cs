@@ -114,4 +114,20 @@ public static class BodyColliders
 
         return list;
     }
+
+    public static void Report(IReadOnlyList<SpringColliderDef> colliders, Func<int, string> nodeName, Action<string> log)
+    {
+        if (colliders.Count == 0) { log("spring-bone colliders: none"); return; }
+        var groups = colliders.GroupBy(c => c.NodeIndex).ToList();
+        log($"spring-bone colliders [{colliders.Count} total, {groups.Count} bones]");
+        log("  bone                    r(m)   n  type");
+        log("  ----------------------  -----  -  ----");
+        foreach (var g in groups)
+        {
+            string name = nodeName(g.Key);
+            float r = g.First().Radius;
+            string type = g.First().Shape == SpringColliderShape.Capsule ? "caps" : "sph";
+            log($"  {name,-22}  {r:F3}  {g.Count()}  {type}");
+        }
+    }
 }

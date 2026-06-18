@@ -44,6 +44,7 @@ root.SetAction(parse =>
         SpringColliders = !parse.GetValue(noCollidersOpt),
         TPose = !parse.GetValue(noTposeOpt),
         Warn = msg => Console.Error.WriteLine($"warning: {msg}"),
+        Log = Console.Error.WriteLine,
         Meta = new VrmMeta
         {
             Title = parse.GetValue(titleOpt) ?? Path.GetFileNameWithoutExtension(input.Name),
