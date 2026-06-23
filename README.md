@@ -1,4 +1,4 @@
-# Pmx2Vrm
+# Pmx2Vrm Pmx to vmr converter
 
 Headless конвертер моделей **MMD PMX → VRM** на чистом .NET (без Unity в рантайме).
 VRM собирается поверх glTF 2.0; поддерживаются версии **VRM 1.0** и **VRM 0.x**.
